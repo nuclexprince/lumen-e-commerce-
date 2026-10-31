@@ -33,11 +33,17 @@ const VARIANT_META: Record<
 export function ProductCarousel({
   products,
   variant = "trending",
+  title,
+  subtitle,
 }: {
   products: Product[];
   variant?: Variant;
+  title?: string;
+  subtitle?: string;
 }) {
   const meta = VARIANT_META[variant];
+  const label = title ?? meta.label;
+  const sub = subtitle ?? meta.sub;
   const trackRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
   const [atStart, setAtStart] = useState(true);
@@ -106,10 +112,10 @@ export function ProductCarousel({
               className="h-1.5 w-1.5 rounded-full"
               style={{ background: meta.tint }}
             />
-            <span className="eyebrow text-muted-foreground">{meta.label}</span>
+            <span className="eyebrow text-muted-foreground">{label}</span>
           </div>
           <h2 className="font-display text-[1.9rem] sm:text-[2.6rem] leading-[1] max-w-md">
-            {meta.sub}
+            {sub}
           </h2>
         </div>
         <div className="hidden sm:flex items-center gap-2">

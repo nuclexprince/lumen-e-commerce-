@@ -13,19 +13,23 @@ import {
   ShieldCheck,
   Star,
 } from "lucide-react";
-import { getProduct, products } from "@/lib/products";
+import { useCatalog } from "@/components/catalog-provider";
 import { formatINR } from "@/lib/format";
 import { useShop } from "@/lib/store";
 import { ProductCarousel } from "./product-carousel";
+import { RecommendationsSection } from "./recommendations";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export function ProductDetail({ id }: { id: string }) {
-  const product = getProduct(id);
+  const { getBySlug, products } = useCatalog();
+  const product = getBySlug(id);
   const { addToCart, toggleWishlist, isWishlisted, navigate, setCartOpen } =
     useShop();
   const [qty, setQty] = useState(1);
   const [color, setColor] = useState(0);
+  const [size, setSize] = useState<string | null>(null);
+  const [activeImg, setActiveImg] = useState(0);
 
   if (!product) {
     return (
@@ -44,11 +48,18 @@ export function ProductDetail({ id }: { id: string }) {
   }
 
   const wished = isWishlisted(product.id);
+  const gallery = product.gallery.length > 1 ? product.gallery : [product.image, product.image, product.image, product.image];
+  const currentImg = gallery[activeImg] ?? product.image;
+  const discountPct = product.originalPrice
+    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    : 0;
   const related = products
     .filter((p) => p.category === product.category && p.id !== product.id)
     .slice(0, 6);
   const relatedList =
     related.length >= 4 ? related : products.filter((p) => p.id !== product.id).slice(0, 6);
+
+  const needsSize = product.sizes.length > 0 && product.sizes[0] !== "One Size";
 
   return (
     <div className="pt-24 sm:pt-28 min-h-screen bg-cream">
@@ -66,13 +77,14 @@ export function ProductDetail({ id }: { id: string }) {
           {/* Gallery */}
           <div className="flex flex-col gap-4">
             <motion.div
-              initial={{ opacity: 0, scale: 0.98 }}
+              key={activeImg}
+              initial={{ opacity: 0.4, scale: 1.01 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
               className="relative aspect-square rounded-3xl overflow-hidden bg-secondary ring-1 ring-foreground/5"
             >
               <img
-                src={product.image}
+                src={currentImg}
                 alt={product.name}
                 className="h-full w-full object-cover"
               />
@@ -81,29 +93,27 @@ export function ProductDetail({ id }: { id: string }) {
                   {product.badge}
                 </span>
               )}
+              {discountPct > 0 && (
+                <span className="absolute top-4 right-4 bg-electric text-white rounded-full px-2.5 py-1 text-[0.6rem] font-semibold">
+                  −{discountPct}%
+                </span>
+              )}
             </motion.div>
-            {/* thumbnail row (same image, angled crops) */}
+            {/* thumbnail row */}
             <div className="grid grid-cols-4 gap-3">
-              {[0, 1, 2, 3].map((i) => (
-                <div
+              {gallery.slice(0, 4).map((g, i) => (
+                <button
                   key={i}
+                  onClick={() => setActiveImg(i)}
                   className={cn(
-                    "aspect-square rounded-xl overflow-hidden bg-secondary ring-1 transition-all cursor-pointer",
-                    i === 0
-                      ? "ring-foreground/40"
+                    "aspect-square rounded-xl overflow-hidden bg-secondary ring-1 transition-all",
+                    i === activeImg
+                      ? "ring-foreground/50"
                       : "ring-foreground/5 opacity-60 hover:opacity-100"
                   )}
-                  style={{
-                    objectPosition: i === 0 ? "center" : `${i * 25}% center`,
-                  }}
                 >
-                  <img
-                    src={product.image}
-                    alt=""
-                    className="h-full w-full object-cover"
-                    style={{ objectPosition: `${i * 30}% center` }}
-                  />
-                </div>
+                  <img src={g} alt="" className="h-full w-full object-cover" />
+                </button>
               ))}
             </div>
           </div>
@@ -125,10 +135,15 @@ export function ProductDetail({ id }: { id: string }) {
                   ({product.reviews} reviews)
                 </span>
               </div>
-              {product.inStock && (
+              {product.inStock ? (
                 <span className="text-xs text-electric flex items-center gap-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-electric" />
-                  In stock
+                  In stock · {product.inventory} left
+                </span>
+              ) : (
+                <span className="text-xs text-destructive flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+                  Out of stock
                 </span>
               )}
             </div>
@@ -142,9 +157,9 @@ export function ProductDetail({ id }: { id: string }) {
                   {formatINR(product.originalPrice)}
                 </span>
               )}
-              {product.originalPrice && (
+              {discountPct > 0 && (
                 <span className="text-xs bg-electric/15 text-electric rounded-full px-2 py-0.5 font-medium">
-                  Save {formatINR(product.originalPrice - product.price)}
+                  Save {discountPct}%
                 </span>
               )}
             </div>
@@ -154,27 +169,55 @@ export function ProductDetail({ id }: { id: string }) {
             </p>
 
             {/* Colors */}
-            <div className="mt-8">
-              <div className="eyebrow text-muted-foreground text-[0.55rem] mb-3">
-                Colour — {product.colors[color].name}
+            {product.colors.length > 0 && (
+              <div className="mt-8">
+                <div className="eyebrow text-muted-foreground text-[0.55rem] mb-3">
+                  Colour — {product.colors[color]?.name}
+                </div>
+                <div className="flex items-center gap-2.5">
+                  {product.colors.map((c, i) => (
+                    <button
+                      key={c.name}
+                      onClick={() => setColor(i)}
+                      className={cn(
+                        "h-9 w-9 rounded-full ring-1 transition-all",
+                        i === color
+                          ? "ring-2 ring-offset-2 ring-offset-background ring-foreground"
+                          : "ring-foreground/15 hover:ring-foreground/40"
+                      )}
+                      style={{ background: c.hex }}
+                      aria-label={c.name}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="flex items-center gap-2.5">
-                {product.colors.map((c, i) => (
-                  <button
-                    key={c.name}
-                    onClick={() => setColor(i)}
-                    className={cn(
-                      "h-9 w-9 rounded-full ring-1 transition-all",
-                      i === color
-                        ? "ring-2 ring-offset-2 ring-offset-background ring-foreground"
-                        : "ring-foreground/15 hover:ring-foreground/40"
-                    )}
-                    style={{ background: c.hex }}
-                    aria-label={c.name}
-                  />
-                ))}
+            )}
+
+            {/* Sizes */}
+            {needsSize && (
+              <div className="mt-8">
+                <div className="eyebrow text-muted-foreground text-[0.55rem] mb-3 flex items-center justify-between">
+                  <span>Size {size && <span className="text-foreground">— {size}</span>}</span>
+                  <span className="normal-case tracking-normal text-muted-foreground/70">Size guide</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {product.sizes.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setSize(s)}
+                      className={cn(
+                        "h-10 min-w-10 px-3 rounded-full text-xs font-medium border transition-all",
+                        s === size
+                          ? "bg-foreground text-background border-foreground"
+                          : "border-foreground/15 hover:border-foreground/40"
+                      )}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Quantity + actions */}
             <div className="mt-8 flex items-center gap-3">
@@ -188,7 +231,7 @@ export function ProductDetail({ id }: { id: string }) {
                 </button>
                 <span className="w-10 text-center text-sm tabular-nums">{qty}</span>
                 <button
-                  onClick={() => setQty((q) => q + 1)}
+                  onClick={() => setQty((q) => Math.min(product.inventory, q + 1))}
                   className="h-11 w-11 grid place-items-center hover:bg-foreground/5 transition-colors rounded-r-full"
                   aria-label="Increase quantity"
                 >
@@ -197,23 +240,26 @@ export function ProductDetail({ id }: { id: string }) {
               </div>
 
               <button
+                disabled={!product.inStock}
                 onClick={() => {
-                  addToCart(product, qty);
+                  if (needsSize && !size) {
+                    toast.error("Please select a size");
+                    return;
+                  }
+                  addToCart(product, qty, { size, color: product.colors[color]?.name });
                   setCartOpen(true);
                   toast.success("Added to bag", { description: `${qty} × ${product.name}` });
                 }}
-                className="flex-1 h-11 rounded-full bg-foreground text-background text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                className="flex-1 h-11 rounded-full bg-foreground text-background text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <ShoppingBag className="h-4 w-4" strokeWidth={1.8} />
-                Add to bag · {formatINR(product.price * qty)}
+                {product.inStock ? `Add to bag · ${formatINR(product.price * qty)}` : "Out of stock"}
               </button>
 
               <button
                 onClick={() => {
                   toggleWishlist(product.id);
-                  toast(wished ? "Removed from wishlist" : "Saved to wishlist", {
-                    description: product.name,
-                  });
+                  toast(wished ? "Removed from wishlist" : "Saved to wishlist", { description: product.name });
                 }}
                 className={cn(
                   "h-11 w-11 rounded-full grid place-items-center border transition-colors",
@@ -241,10 +287,52 @@ export function ProductDetail({ id }: { id: string }) {
                 </div>
               ))}
             </div>
+
+            {/* Specifications */}
+            <div className="mt-10 pt-8 border-t border-foreground/10">
+              <div className="eyebrow text-muted-foreground text-[0.55rem] mb-4">Specifications</div>
+              <dl className="grid grid-cols-2 gap-y-3 text-sm">
+                <dt className="text-muted-foreground">Category</dt>
+                <dd className="text-right">{product.categoryName}</dd>
+                <dt className="text-muted-foreground">Colours</dt>
+                <dd className="text-right">{product.colors.map((c) => c.name).join(", ")}</dd>
+                <dt className="text-muted-foreground">Sizes</dt>
+                <dd className="text-right">{product.sizes.join(", ")}</dd>
+                <dt className="text-muted-foreground">Tags</dt>
+                <dd className="text-right">{product.tags.slice(0, 4).join(", ")}</dd>
+                <dt className="text-muted-foreground">Inventory</dt>
+                <dd className="text-right">{product.inventory} units</dd>
+              </dl>
+            </div>
           </div>
         </div>
 
-        {/* Related */}
+        {/* Recommendations */}
+        <div className="mt-20 sm:mt-28 space-y-20">
+          <RecommendationsSection
+            productId={product.id}
+            type="related"
+            title="You may also like"
+            subtitle="Related by category and material."
+            variant="editors"
+          />
+          <RecommendationsSection
+            productId={product.id}
+            type="frequently-bought"
+            title="Frequently bought together"
+            subtitle="Pairs customers often reach for."
+            variant="trending"
+          />
+          <RecommendationsSection
+            productId={product.id}
+            type="recently-viewed"
+            title="Recently viewed"
+            subtitle="Pick up where you left off."
+            variant="new"
+          />
+        </div>
+
+        {/* Related carousel fallback */}
         <div className="mt-24 sm:mt-32">
           <ProductCarousel products={relatedList} variant="editors" />
         </div>

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SlidersHorizontal, Check, Heart, X } from "lucide-react";
-import { products, categories, type CategoryId } from "@/lib/products";
+import { useCatalog } from "@/components/catalog-provider";
 import { ProductCard } from "./product-card";
 import { useShop } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -19,8 +19,9 @@ const SORTS: { id: Sort; label: string }[] = [
 ];
 
 export function ProductDiscovery({ initialCategory }: { initialCategory?: string }) {
-  const [cat, setCat] = useState<CategoryId | "all">(
-    (initialCategory as CategoryId) || "all"
+  const { products, categories } = useCatalog();
+  const [cat, setCat] = useState<string>(
+    initialCategory || "all"
   );
   const [sort, setSort] = useState<Sort>("featured");
   const [onlyWish, setOnlyWish] = useState(false);
@@ -44,7 +45,7 @@ export function ProductDiscovery({ initialCategory }: { initialCategory?: string
         break;
     }
     return list;
-  }, [cat, sort, onlyWish, wishlist]);
+  }, [products, cat, sort, onlyWish, wishlist]);
 
   return (
     <div className="pt-28 sm:pt-32 pb-24 min-h-screen bg-cream">

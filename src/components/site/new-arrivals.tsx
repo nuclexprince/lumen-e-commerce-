@@ -3,12 +3,13 @@
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
-import { getByCollection } from "@/lib/products";
+import { useCatalog } from "@/components/catalog-provider";
 import { formatINR } from "@/lib/format";
 import { useShop } from "@/lib/store";
 
 export function NewArrivals() {
   const ref = useRef<HTMLDivElement>(null);
+  const { getByCollection } = useCatalog();
   const items = getByCollection("new");
   const { navigate, addToCart } = useShop();
   const { scrollYProgress } = useScroll({

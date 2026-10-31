@@ -3,13 +3,14 @@
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
-import { categories } from "@/lib/products";
+import { useCatalog } from "@/components/catalog-provider";
 import { useShop } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 export function CategoryShowcase() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const { navigate } = useShop();
+  const { categories } = useCatalog();
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ["start end", "end start"],

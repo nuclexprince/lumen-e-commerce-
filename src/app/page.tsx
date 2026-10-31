@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useShop } from "@/lib/store";
+import { CatalogProvider, useCatalog } from "@/components/catalog-provider";
 import { FloatingNavbar } from "@/components/site/navbar";
 import { ShoppingBagDrawer } from "@/components/shop/shopping-bag";
 import { SearchOverlay } from "@/components/shop/search-overlay";
@@ -20,13 +21,21 @@ import { Newsletter } from "@/components/site/newsletter";
 import { Footer } from "@/components/site/footer";
 import { ProductDiscovery } from "@/components/shop/product-discovery";
 import { ProductDetail } from "@/components/shop/product-detail";
-import { getByCollection } from "@/lib/products";
+import { RecommendationsSection } from "@/components/shop/recommendations";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
 }
 
 export default function Home() {
+  return (
+    <CatalogProvider>
+      <Storefront />
+    </CatalogProvider>
+  );
+}
+
+function Storefront() {
   const { view } = useShop();
 
   // Refresh ScrollTrigger when view changes (hero pins etc.)
@@ -63,6 +72,10 @@ export default function Home() {
 }
 
 function HomePage() {
+  const { getByCollection } = useCatalog();
+  const trending = getByCollection("trending");
+  const editors = getByCollection("editors");
+
   return (
     <>
       <HeroCartCanvas />
@@ -74,7 +87,7 @@ function HomePage() {
       {/* Trending carousel */}
       <section className="bg-cream py-24 sm:py-32 px-4 sm:px-6">
         <div className="mx-auto max-w-7xl">
-          <ProductCarousel products={getByCollection("trending")} variant="trending" />
+          <ProductCarousel products={trending} variant="trending" />
         </div>
       </section>
 
@@ -83,7 +96,7 @@ function HomePage() {
       {/* Editor's picks carousel */}
       <section className="bg-cream py-24 sm:py-32 px-4 sm:px-6">
         <div className="mx-auto max-w-7xl">
-          <ProductCarousel products={getByCollection("editors")} variant="editors" />
+          <ProductCarousel products={editors} variant="editors" />
         </div>
       </section>
 

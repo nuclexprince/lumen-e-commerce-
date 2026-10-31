@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, ArrowUpRight } from "lucide-react";
-import { products } from "@/lib/products";
+import { useCatalog } from "@/components/catalog-provider";
 import { formatINR } from "@/lib/format";
 import { useShop } from "@/lib/store";
 
@@ -11,6 +11,7 @@ const SUGGESTIONS = ["Earbuds", "Sneakers", "Cashmere", "Lamp", "Tote"];
 
 export function SearchOverlay() {
   const { searchOpen, setSearchOpen, navigate } = useShop();
+  const { products } = useCatalog();
   const [q, setQ] = useState("");
 
   const close = () => {
@@ -37,7 +38,7 @@ export function SearchOverlay() {
           p.shortDescription.toLowerCase().includes(query)
       )
       .slice(0, 6);
-  }, [q]);
+  }, [q, products]);
 
   return (
     <AnimatePresence>

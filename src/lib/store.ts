@@ -10,11 +10,14 @@ export type View =
   | { name: "product"; id: string };
 
 interface CartLine {
+  lineId: string;
   productId: string;
   name: string;
   image: string;
   price: number;
   quantity: number;
+  size?: string | null;
+  color?: string | null;
 }
 
 interface ShopState {
@@ -24,9 +27,9 @@ interface ShopState {
 
   // Cart
   cart: CartLine[];
-  addToCart: (product: Product, qty?: number) => void;
-  removeFromCart: (productId: string) => void;
-  setQuantity: (productId: string, qty: number) => void;
+  addToCart: (product: Product, qty?: number, opts?: { size?: string | null; color?: string | null }) => void;
+  removeFromCart: (lineId: string) => void;
+  setQuantity: (lineId: string, qty: number) => void;
   clearCart: () => void;
 
   // Wishlist
@@ -57,15 +60,16 @@ export const useShop = create<ShopState>()(
       },
 
       cart: [],
-      addToCart: (product, qty = 1) =>
+      addToCart: (product, qty = 1, opts) =>
         set((state) => {
-          const existing = state.cart.find((l) => l.productId === product.id);
+          const size = opts?.size ?? null;
+          const color = opts?.color ?? null;
+          const lineId = `${product.id}__${size || ""}__${color || ""}`;
+          const existing = state.cart.find((l) => l.lineId === lineId);
           if (existing) {
             return {
               cart: state.cart.map((l) =>
-                l.productId === product.id
-                  ? { ...l, quantity: l.quantity + qty }
-                  : l
+                l.lineId === lineId ? { ...l, quantity: l.quantity + qty } : l
               ),
             };
           }
@@ -73,26 +77,29 @@ export const useShop = create<ShopState>()(
             cart: [
               ...state.cart,
               {
+                lineId,
                 productId: product.id,
                 name: product.name,
                 image: product.image,
                 price: product.price,
                 quantity: qty,
+                size,
+                color,
               },
             ],
           };
         }),
-      removeFromCart: (productId) =>
+      removeFromCart: (lineId) =>
         set((state) => ({
-          cart: state.cart.filter((l) => l.productId !== productId),
+          cart: state.cart.filter((l) => l.lineId !== lineId),
         })),
-      setQuantity: (productId, qty) =>
+      setQuantity: (lineId, qty) =>
         set((state) => ({
           cart:
             qty <= 0
-              ? state.cart.filter((l) => l.productId !== productId)
+              ? state.cart.filter((l) => l.lineId !== lineId)
               : state.cart.map((l) =>
-                  l.productId === productId ? { ...l, quantity: qty } : l
+                  l.lineId === lineId ? { ...l, quantity: qty } : l
                 ),
         })),
       clearCart: () => set({ cart: [] }),

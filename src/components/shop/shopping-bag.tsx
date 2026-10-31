@@ -1,12 +1,15 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, Minus, Trash2, ShoppingBag, ArrowRight } from "lucide-react";
+import { X, Plus, Minus, Trash2, ShoppingBag, ArrowRight, AlertTriangle } from "lucide-react";
 import { useShop } from "@/lib/store";
+import { useCatalog } from "@/components/catalog-provider";
 import { formatINR } from "@/lib/format";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export function ShoppingBagDrawer() {
+  const router = useRouter();
   const {
     cartOpen,
     setCartOpen,
@@ -18,10 +21,25 @@ export function ShoppingBagDrawer() {
     cartCount,
     navigate,
   } = useShop();
+  const { products } = useCatalog();
 
   const sub = subtotal();
-  const shipping = cart.length > 0 ? 0 : 0; // free shipping
+  const shipping = 0; // complimentary
   const total = sub + shipping;
+
+  const inventoryFor = (productId: string) =>
+    products.find((p) => p.id === productId)?.inventory ?? null;
+
+  const hasStockIssue = cart.some(
+    (l) =>
+      inventoryFor(l.productId) !== null &&
+      (inventoryFor(l.productId) as number) < l.quantity
+  );
+
+  const goCheckout = () => {
+    setCartOpen(false);
+    router.push("/checkout");
+  };
 
   return (
     <AnimatePresence>
@@ -87,9 +105,13 @@ export function ShoppingBagDrawer() {
               ) : (
                 <ul className="space-y-5">
                   <AnimatePresence initial={false}>
-                    {cart.map((line) => (
+                    {cart.map((line) => {
+                      const inv = inventoryFor(line.productId);
+      const lowStock = inv !== null && inv < line.quantity;
+      const outOfStock = inv !== null && inv <= 0;
+      return (
                       <motion.li
-                        key={line.productId}
+                        key={line.lineId}
                         layout
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
@@ -111,7 +133,7 @@ export function ShoppingBagDrawer() {
                             </h4>
                             <button
                               onClick={() => {
-                                removeFromCart(line.productId);
+                                removeFromCart(line.lineId);
                                 toast("Removed from bag", { description: line.name });
                               }}
                               className="text-muted-foreground hover:text-destructive transition-colors"
@@ -122,11 +144,22 @@ export function ShoppingBagDrawer() {
                           </div>
                           <p className="text-[0.7rem] text-muted-foreground mt-0.5">
                             {formatINR(line.price)}
+                            {line.color && <span> · {line.color}</span>}
+                            {line.size && <span> · Size {line.size}</span>}
                           </p>
+                          {outOfStock ? (
+                            <p className="text-[0.65rem] text-destructive flex items-center gap-1 mt-1">
+                              <AlertTriangle className="h-3 w-3" /> No longer available
+                            </p>
+                          ) : lowStock ? (
+                            <p className="text-[0.65rem] text-amber-600 flex items-center gap-1 mt-1">
+                              <AlertTriangle className="h-3 w-3" /> Only {inv} left
+                            </p>
+                          ) : null}
                           <div className="mt-auto flex items-center justify-between">
                             <div className="flex items-center rounded-full border border-foreground/15">
                               <button
-                                onClick={() => setQuantity(line.productId, line.quantity - 1)}
+                                onClick={() => setQuantity(line.lineId, line.quantity - 1)}
                                 className="h-8 w-8 grid place-items-center hover:bg-foreground/5 transition-colors rounded-l-full"
                                 aria-label="Decrease"
                               >
@@ -136,7 +169,7 @@ export function ShoppingBagDrawer() {
                                 {line.quantity}
                               </span>
                               <button
-                                onClick={() => setQuantity(line.productId, line.quantity + 1)}
+                                onClick={() => setQuantity(line.lineId, Math.min(inv ?? 99, line.quantity + 1))}
                                 className="h-8 w-8 grid place-items-center hover:bg-foreground/5 transition-colors rounded-r-full"
                                 aria-label="Increase"
                               >
@@ -149,7 +182,8 @@ export function ShoppingBagDrawer() {
                           </div>
                         </div>
                       </motion.li>
-                    ))}
+                    );
+                    })}
                   </AnimatePresence>
 
                   {cart.length > 0 && (
@@ -186,15 +220,12 @@ export function ShoppingBagDrawer() {
                   </span>
                 </div>
                 <button
-                  onClick={() => {
-                    toast.success("Checkout simulated", {
-                      description: "This is a demo store — no payment taken.",
-                    });
-                  }}
-                  className="w-full h-12 rounded-full bg-foreground text-background text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity mt-1"
+                  onClick={goCheckout}
+                  disabled={hasStockIssue}
+                  className="w-full h-12 rounded-full bg-foreground text-background text-sm font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity mt-1 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Proceed to checkout
-                  <ArrowRight className="h-4 w-4" />
+                  {hasStockIssue ? "Resolve stock issues first" : "Proceed to checkout"}
+                  {!hasStockIssue && <ArrowRight className="h-4 w-4" />}
                 </button>
                 <p className="text-[0.65rem] text-muted-foreground text-center">
                   Secure, encrypted, 30-day returns.
