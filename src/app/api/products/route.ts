@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getPublishedProducts, serializeProduct } from "@/lib/catalog";
 import { requireAdmin } from "@/lib/auth";
@@ -97,5 +98,12 @@ export async function POST(req: NextRequest) {
     where: { id: product.id },
     include: { category: true, images: true, variants: true },
   });
+
+  // Bust cache for storefront pages so new items show up immediately
+  revalidatePath("/", "layout");
+  revalidatePath("/catalog");
+  revalidatePath(`/category/${categorySlug}`);
+  revalidatePath(`/product/${slug}`);
+
   return NextResponse.json({ product: serializeProduct(fresh) }, { status: 201 });
 }
