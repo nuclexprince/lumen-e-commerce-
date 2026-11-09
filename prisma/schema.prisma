@@ -1,4 +1,4 @@
-// LUMEN — Prisma schema (SQLite)
+// LUMEN — Prisma schema (PostgreSQL)
 // Full-stack e-commerce: auth, catalog, cart, orders, payments, admin
 
 generator client {
@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
